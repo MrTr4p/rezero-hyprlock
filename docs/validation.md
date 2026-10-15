@@ -45,7 +45,7 @@ Authentication uses real PAM with a deterministic test helper mounted over `/etc
 
 The login1 service is a test double on a private D-Bus. The sleep test exercises Hypridle's real event handling and Wayland lock notification, but does not physically suspend the host. The idle timeout is shortened from 300 seconds to 2 seconds only in the disposable test copy.
 
-The friend's own PAM configuration, actual password, GPU wake behavior, lid policy, physical suspend/resume, and reboot have **not** been tested remotely. Perform the recipient checks in the [installation guide](../README.md#4-check-it-on-that-computer). Persistence is supplied by installed asset copies and a sourced `exec-once` entry that runs on each Hyprland login; there is no preview server or repository path required at runtime.
+The friend's own PAM configuration, actual password, GPU wake behavior, lid policy, physical suspend/resume, and reboot have **not** been tested remotely. Perform the recipient checks in the [installation guide](hyprlock-install.md#4-check-it-on-that-computer). Persistence is supplied by installed asset copies and a sourced `exec-once` entry that runs on each Hyprland login; there is no preview server or repository path required at runtime.
 
 ## Repeat the checks
 

@@ -26,6 +26,8 @@ For reduced motion, set `Animations=false` in `localhost/theme/theme.conf`, then
 
 ## Dependencies on a fresh Arch computer
 
+Start with the [complete installation guide](../README.md#install-and-run-the-full-preview-on-arch-linux), which includes cloning the repository. The commands below assume you are already in the repository root.
+
 ```sh
 sudo pacman -S --needed base-devel git python qt6-base qt6-declarative \
   qt6-multimedia qt6-svg qt6-shadertools mesa xorg-server-xvfb x11vnc \
