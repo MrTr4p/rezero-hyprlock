@@ -1,5 +1,19 @@
 # Validation record
 
+## Full animated localhost preview — 2026-10-15
+
+The complete QML design is now served at `http://localhost:8772/` by the independent `localhost/` project. It retains the original three-column interface and animations, with the central form adapted to preview unlocking the existing account.
+
+- **30 native QML interaction checks passed**, including the read-only account, password validation, reveal/clear, mock unlock, all power confirmation/cancel paths, mute, and volume.
+- **Browser checks passed** in Chromium: live noVNC connection, keyboard input, visible wrong-password and successful-unlock states, all three wallpaper selections, reset, and no JavaScript errors.
+- The rendered scene was visually inspected, including the restored session panel, system metrics, CAVA, audio panel, power buttons, animated artwork, and footer.
+- The transient localhost service successfully stopped and restarted. HTTP, WebSocket, and VNC listeners bind only to loopback. It is not enabled at boot.
+- Active Hyprland and SDDM configuration hashes still match their values before this task. The extracted Hyprlock/Hypridle test tools and leftover test installation were removed.
+
+This full preview uses mock authentication and simulated power actions. The following earlier tests describe the **separate, simpler Hyprlock version**, not a production backend for the animated QML scene.
+
+## Earlier Hyprlock version
+
 Validated on **2026-10-15** with Arch Linux, Hyprland **0.56.2**, Hyprlock **0.9.6**, and Hypridle **0.1.8**.
 
 The author's installed Hyprland configuration and SDDM selection were unchanged, verified by before/after SHA-256 checks. No Re:Zero launcher or configuration was installed into the author's active desktop. All installed-theme tests used separate destinations.

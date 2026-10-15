@@ -1,4 +1,23 @@
-# Re:Zero — Another Beginning · Hyprlock
+# Re:Zero — Another Beginning · Lock screen
+
+## Full animated localhost preview
+
+The complete original layout is available as a **localhost preview**, including the animated hair and feathers, wind ribbon, session/account panels, live CPU/RAM/swap readings, CAVA spectrum, ambience controls, battery/layout footer, and power-action dialogs. The center action now says **Unlock**, and the current account is read-only.
+
+![Full animated lock-screen design, captured in the browser](docs/localhost-preview.png)
+
+```sh
+./localhost/start.sh
+# Open http://localhost:8772/
+```
+
+Use the **demo password `test`**, not your real password. Unlock and power actions are simulated. This runs the QML scene inside an isolated virtual display and streams it to your browser. It does not lock your Arch session, install a theme, change Hyprland/SDDM settings, or start automatically after reboot.
+
+Stop it with `./localhost/stop.sh`. [Preview setup and details](localhost/README.md).
+
+**Renderer distinction:** this full QML preview is not a Hyprlock config and is not a production locker. Hyprlock can reproduce labels, images, panels and command-fed status, but it cannot directly run the original Qt Quick scene, hair shader, or Qt multimedia controls. A production port preserving the entire animated interface needs a QML-capable session locker such as Quickshell. The simpler Hyprlock implementation below remains a separate option; its installation instructions do not install the animated preview.
+
+## Optional simpler Hyprlock version
 
 An ivory and lavender **lock screen for Hyprland**, adapted from [the Re:Zero SDDM design](https://github.com/MrTr4p/rezero-sddm). Unlock your existing session with your normal Linux password.
 

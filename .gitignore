@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 validation/
 .venv/
+localhost/runtime/
+localhost/preview/qt-preview
+localhost/preview/theme-tests
