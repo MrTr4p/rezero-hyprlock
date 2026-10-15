@@ -1,0 +1,16 @@
+# Re:Zero idle policy. Start exactly one idle daemon per session.
+general {
+    lock_cmd = @LOCK_COMMAND@
+    before_sleep_cmd = @LOCK_COMMAND@
+    after_sleep_cmd = hyprctl dispatch dpms on
+    # Wait for Hyprland to confirm the session is locked before releasing
+    # the logind sleep delay inhibitor. Requires hypridle >= 0.1.6.
+    inhibit_sleep = 3
+}
+
+listener {
+    timeout = 300
+    on-timeout = @LOCK_COMMAND@
+}
+
+# Keep display sleep optional: the default policy only locks the session.

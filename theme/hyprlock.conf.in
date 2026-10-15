@@ -1,0 +1,201 @@
+# Re:Zero — Another Beginning. Hyprlock 0.9.6+
+# Installed paths are substituted by install.py.
+$font = JetBrains Mono
+$ink = rgb(30344f)
+$accent = rgb(71639e)
+
+general {
+    hide_cursor = true
+    ignore_empty_input = true
+}
+
+auth {
+    pam {
+        enabled = true
+        module = hyprlock
+    }
+    fingerprint {
+        enabled = false
+    }
+}
+
+animations {
+    enabled = true
+    animation = fadeIn, 0
+    animation = fadeOut, 1, 3, default
+    animation = inputFieldDots, 1, 2, default
+}
+
+background {
+    monitor =
+    path = @ASSETS@/background.png
+    color = rgb(f2efe7)
+    blur_passes = 0
+}
+
+# Quiet ivory wash, then the original ink-colored framing ribbons.
+shape {
+    monitor =
+    size = 100%, 100%
+    color = rgba(f2efe72b)
+    zindex = 0
+}
+shape {
+    monitor =
+    size = 100%, 68
+    color = $ink
+    halign = center
+    valign = top
+    zindex = 1
+}
+shape {
+    monitor =
+    size = 100%, 44
+    color = $ink
+    halign = center
+    valign = bottom
+    zindex = 1
+}
+label {
+    monitor =
+    text = Re:ゼロ
+    color = rgb(f2efe7)
+    font_family = Noto Serif CJK JP
+    font_size = 27
+    position = 28, -10
+    halign = left
+    valign = top
+    zindex = 2
+}
+label {
+    monitor =
+    text = A N O T H E R   B E G I N N I N G
+    color = rgb(d6cdeb)
+    font_family = $font
+    font_size = 11
+    position = -28, -26
+    halign = right
+    valign = top
+    zindex = 2
+}
+
+# Fixed logical-pixel panel: fits 720p, portrait, and scaled HiDPI outputs.
+shape {
+    monitor =
+    size = 440, 410
+    color = rgba(f3f0e9ed)
+    border_color = rgb(9686a8)
+    border_size = 1
+    rounding = 3
+    position = 0, -10
+    zindex = 2
+}
+image {
+    monitor =
+    path = @ASSETS@/compass.png
+    size = 72
+    border_size = 0
+    rounding = 0
+    position = 0, 200
+    zindex = 3
+}
+label {
+    monitor =
+    text = $TIME
+    color = $ink
+    font_family = $font
+    font_size = 60
+    position = 0, 118
+    halign = center
+    valign = center
+    zindex = 3
+}
+label {
+    monitor =
+    text = cmd[update:60000] date '+%a, %d %b %Y'
+    color = $accent
+    font_family = $font
+    font_size = 12
+    position = 0, 60
+    halign = center
+    valign = center
+    zindex = 3
+}
+label {
+    monitor =
+    text = Welcome back, $USER
+    color = $ink
+    font_family = $font
+    font_size = 15
+    position = 0, 10
+    halign = center
+    valign = center
+    zindex = 3
+}
+label {
+    monitor =
+    text = また、会えたね
+    color = $accent
+    font_family = Noto Sans CJK JP
+    font_size = 13
+    position = 0, -25
+    halign = center
+    valign = center
+    zindex = 3
+}
+input-field {
+    monitor =
+    size = 336, 52
+    position = 0, -85
+    halign = center
+    valign = center
+    rounding = 3
+    outline_thickness = 2
+    outer_color = $accent
+    inner_color = rgb(f8f5ee)
+    font_color = $ink
+    font_family = $font
+    dots_size = 0.22
+    dots_spacing = 0.3
+    fade_on_empty = false
+    placeholder_text = Password
+    check_text = Checking…
+    fail_text = Try again ($ATTEMPTS)
+    check_color = rgb(8776b3)
+    fail_color = rgb(a04e68)
+    capslock_color = rgb(b98b42)
+    zindex = 4
+}
+label {
+    monitor =
+    text = ENTER TO UNLOCK  ·  ESC TO CLEAR
+    color = $accent
+    font_family = $font
+    font_size = 10
+    position = 0, -145
+    halign = center
+    valign = center
+    zindex = 3
+}
+label {
+    monitor =
+    text = FATE IS NOT WRITTEN.
+    color = rgb(d6cdeb)
+    font_family = $font
+    font_size = 10
+    position = 28, 14
+    halign = left
+    valign = bottom
+    zindex = 2
+}
+label {
+    monitor =
+    text = $LAYOUT
+    color = rgb(d6cdeb)
+    font_family = $font
+    font_size = 10
+    position = -28, 14
+    halign = right
+    valign = bottom
+    zindex = 2
+}
