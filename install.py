@@ -15,6 +15,20 @@ import time
 SOURCE = Path(__file__).resolve().parent
 BEGIN = "# BEGIN REZERO HYPRLOCK (managed by install.py)"
 END = "# END REZERO HYPRLOCK"
+MARKERS = {
+    "conf": (BEGIN, END),
+    "lua": ("--" + BEGIN[1:], "--" + END[1:]),
+}
+
+
+def lua_string(value):
+    return json.dumps(str(value), ensure_ascii=False)
+
+
+def uncomment_lua(text):
+    # Keep quoted strings (including long strings) intact while removing comments.
+    tokens = r'''(?P<string>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\[(?P<quoted_eq>=*)\[.*?\](?P=quoted_eq)\])|--\[(?P<comment_eq>=*)\[.*?\](?P=comment_eq)\]|--[^\n]*'''
+    return re.sub(tokens, lambda match: match.group("string") or "", text, flags=re.S)
 
 
 def digest(data):
@@ -74,15 +88,20 @@ class Installation:
         print(f"Saved your edited file: {saved}")
 
     def uninstall(self):
-        main = self.p["config"] / "hyprland.conf"
-        if main.is_symlink():
-            raise ValueError("Remove the Re:Zero source block from your symlinked Hyprland config manually before rollback.")
-        if main.exists():
+        cleanups = []
+        for kind, (begin, end) in MARKERS.items():
+            main = self.p["config"] / ("hyprland." + kind)
+            if not main.is_file():
+                continue
             text = main.read_text()
-            clean = re.sub(r"\n?" + re.escape(BEGIN) + r"\n.*?\n" + re.escape(END) + r"\n?", "\n", text, flags=re.S)
+            clean = re.sub(r"\n?" + re.escape(begin) + r"\n.*?\n" + re.escape(end) + r"\n?", "\n", text, flags=re.S)
             if clean != text:
-                # Preserve unrelated edits made since installation.
-                main.write_text(clean)
+                if any(part.is_symlink() for part in [main, *main.parents]):
+                    raise ValueError("Remove the Re:Zero source block from your symlinked Hyprland config manually before rollback.")
+                cleanups.append((main, clean))
+        for main, clean in cleanups:
+            # Preserve unrelated edits made since installation.
+            main.write_text(clean)
         for key, entry in reversed(list(self.entries.items())):
             path = Path(key)
             if path.is_symlink():
@@ -123,8 +142,8 @@ exec flock --nonblock --close --conflict-exit-code 0 "$XDG_RUNTIME_DIR/rezero-{k
 def install(args):
     p = paths(args.target_home)
     for path in p.values():
-        if not path.is_absolute() or any(c in str(path) for c in "\n\r#$\\"):
-            raise ValueError("Installation paths must be absolute and cannot contain newline, #, $, or backslash.")
+        if not path.is_absolute() or any(ord(c) < 32 or c in "#$\\" for c in str(path)):
+            raise ValueError("Installation paths must be absolute and cannot contain control characters, #, $, or backslash.")
     instance = Installation(p)
     if args.uninstall:
         instance.uninstall()
@@ -134,16 +153,23 @@ def install(args):
     missing = [name for name in required if not shutil.which(name)]
     if missing:
         raise ValueError("Install dependencies first. Missing: " + ", ".join(missing))
-    main = p["config"] / "hyprland.conf"
+    kind = args.hyprland_format
+    if kind == "auto":
+        lua_main = p["config"] / "hyprland.lua"
+        kind = "lua" if lua_main.exists() or lua_main.is_symlink() else "conf"
+    main = p["config"] / ("hyprland." + kind)
+    snippet_file = p["config"] / "rezero" / main.name
+    source_line = "dofile(" + lua_string(snippet_file) + ")" if kind == "lua" else "source = " + str(snippet_file)
     if args.enable:
         if not main.is_file() or main.is_symlink():
-            raise ValueError("--enable needs a regular hyprland.conf. For a symlink or other layout, install without --enable and source the generated snippet manually.")
+            raise ValueError(f"--enable needs a regular {main.name}. For a symlink or other layout, install without --enable and source the generated snippet manually.")
         if not args.no_idle:
             conflicts = []
-            for file in p["config"].rglob("*.conf"):
-                if "rezero" in file.relative_to(p["config"]).parts:
+            for file in sorted(p["config"].rglob("*")):
+                if not file.is_file() or file.suffix not in {".conf", ".lua"} or "rezero" in file.relative_to(p["config"]).parts:
                     continue
-                lines = "\n".join(line.split("#", 1)[0] for line in file.read_text(errors="replace").splitlines())
+                text = file.read_text(errors="replace")
+                lines = uncomment_lua(text) if file.suffix == ".lua" else "\n".join(line.split("#", 1)[0] for line in text.splitlines())
                 if re.search(r"\b(?:hypridle|swayidle)\b", lines):
                     conflicts.append(str(file))
             if conflicts:
@@ -160,7 +186,7 @@ def install(args):
     lock = p["bin"] / "rezero-lock"
     idle = p["bin"] / "rezero-idle"
     shell = p["config"].parent / "quickshell" / "rezero"
-    planned = [config / "hypridle.conf", config / "hyprland.conf", lock, idle]
+    planned = [config / "hypridle.conf", config / "hyprland.conf", config / "hyprland.lua", lock, idle]
     if args.backend == "quickshell":
         planned.extend(shell / f.relative_to(SOURCE / "quickshell") for f in (SOURCE / "quickshell").rglob("*") if f.is_file() and "__pycache__" not in f.parts)
     else:
@@ -192,25 +218,31 @@ def install(args):
     if not args.no_idle:
         snippet += "exec-once = " + shlex.quote(str(idle)) + "\n"
     instance.write(config / "hyprland.conf", snippet)
+    snippet = '-- Re:Zero — loaded by Hyprland on every login.\nhl.unbind("SUPER + L")\n'
+    snippet += 'hl.bind("SUPER + L", hl.dsp.exec_cmd(' + lua_string(shlex.quote(str(lock))) + '))\n'
+    if not args.no_idle:
+        snippet += 'hl.on("hyprland.start", function()\n    hl.exec_cmd(' + lua_string(shlex.quote(str(idle))) + ')\nend)\n'
+    instance.write(config / "hyprland.lua", snippet)
 
     if args.enable:
         if args.backend == "hyprlock":
             instance.write(p["config"] / "hyprlock.conf", "source = " + str(config / "hyprlock.conf") + "\n")
         text = main.read_text()
-        block = BEGIN + "\nsource = " + str(config / "hyprland.conf") + "\n" + END
-        if BEGIN in text:
-            text = re.sub(re.escape(BEGIN) + r"\n.*?\n" + re.escape(END), lambda _: block, text, flags=re.S)
+        begin, end = MARKERS[kind]
+        block = begin + "\n" + source_line + "\n" + end
+        if begin in text:
+            text = re.sub(re.escape(begin) + r"\n.*?\n" + re.escape(end), lambda _: block, text, flags=re.S)
         else:
-            backup = p["state"] / "hyprland.conf.before-enable"
+            backup = p["state"] / (main.name + ".before-enable")
             if not backup.exists():
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(main, backup)
             text = text.rstrip("\n") + "\n\n" + block + "\n"
         main.write_text(text)
-        print("Enabled for future Hyprland logins. Log out and back in when ready.")
+        print(f"Enabled in {main.name} for future Hyprland logins. Log out and back in when ready.")
     else:
-        print("Installed files only. To enable at every login, add to hyprland.conf:")
-        print("source = " + str(config / "hyprland.conf"))
+        print(f"Installed files only. To enable at every login, add to {main.name}:")
+        print(source_line)
     print("Manual lock: " + str(lock))
     print("Configuration: " + str(shell if args.backend == "quickshell" else config))
     print("No session was locked, reloaded, or restarted.")
@@ -220,6 +252,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=["quickshell", "hyprlock"], default="quickshell", help="QuickShell by default; Hyprlock installs the simpler static fallback")
     parser.add_argument("--enable", action="store_true", help="add persistent Hyprland key binding and idle integration")
+    parser.add_argument("--hyprland-format", choices=["auto", "lua", "conf"], default="auto", help="Hyprland config format; auto prefers hyprland.lua when present, otherwise hyprland.conf")
     parser.add_argument("--no-idle", action="store_true", help="leave automatic locking to your existing idle daemon")
     parser.add_argument("--uninstall", action="store_true", help="restore backed-up files and remove the managed Hyprland block")
     parser.add_argument("--target-home", type=Path, help="use a separate directory for installation tests")

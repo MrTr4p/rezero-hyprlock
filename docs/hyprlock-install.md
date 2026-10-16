@@ -10,7 +10,7 @@ Includes the Emilia/Subaru artwork, two alternate wallpapers, clock, date, compa
 
 ## Install permanently on your friend's computer
 
-Tested with **Hyprland 0.56.2, Hyprlock 0.9.6, and Hypridle 0.1.8 on Arch Linux**. This installer targets Hyprland's `hyprland.conf` format. Use a current distro package for Hyprlock and its supplied PAM policy; do not create a test PAM policy on your computer.
+Tested with **Hyprland 0.56.2, Hyprlock 0.9.6, and Hypridle 0.1.8 on Arch Linux**. The installer supports both `hyprland.lua` and `hyprland.conf`, preferring Lua when present. Use a current distro package for Hyprlock and its supplied PAM policy; do not create a test PAM policy on your computer.
 
 ### 1. Install dependencies
 
@@ -33,13 +33,13 @@ cd rezero-hyprlock
 python3 install.py --backend hyprlock --enable
 ```
 
-The installer copies the artwork to `~/.local/share/rezero-hyprlock/`, creates configuration under `~/.config/hypr/rezero/`, and installs two launchers in `~/.local/bin/`. It backs up an existing default `hyprlock.conf`, makes bare `hyprlock` use this theme, and adds one managed `source` block to `hyprland.conf`. It does not launch the locker, reload Hyprland, or change the login manager.
+The installer copies the artwork to `~/.local/share/rezero-hyprlock/`, creates configuration under `~/.config/hypr/rezero/`, and installs two launchers in `~/.local/bin/`. It backs up an existing default `hyprlock.conf`, makes bare `hyprlock` use this theme, and adds one managed include block: `dofile(...)` in `hyprland.lua`, or `source = ...` in `hyprland.conf`. Use `--hyprland-format lua` or `--hyprland-format conf` to select the format explicitly. Hyprlock and Hypridle retain their own `.conf` formats in either case. It does not launch the locker, reload Hyprland, or change the login manager.
 
 **Already have Hypridle, Swayidle, or managed dotfiles?** Read [Existing idle setups](#existing-idle-setups) below. The installer refuses automatic idle integration when it detects another idle configuration or an enabled/running `hypridle.service`. Dotfile suites may start a daemon outside these files; check their startup settings too. Run only one idle daemon.
 
 ### 3. Log out and log back in
 
-Save your work, then log out of Hyprland and log back in. The sourced snippet starts the idle daemon on every login, including after reboot. A config reload alone does not rerun `exec-once`.
+Save your work, then log out of Hyprland and log back in. The included snippet starts the idle daemon on every login, including after reboot. A config reload alone does not rerun `exec-once` or Lua's `hyprland.start` callback.
 
 After login:
 
@@ -98,9 +98,7 @@ listener {
 
 Edit the existing blocks rather than creating competing listeners. Keep your existing Hypridle startup method. If you migrate from Swayidle, remove its startup entry and stop using it at the next login before enabling Re:Zero's Hypridle snippet. For lock menu buttons or other shortcuts, point their command to `~/.local/bin/rezero-lock`.
 
-For symlinked configs or a dotfile manager, run `python3 install.py --backend hyprlock` without `--enable`, then add the printed `source = .../rezero/hyprland.conf` line to the configuration managed by your dotfile tool. Add `--no-idle` if your setup already starts an idle daemon. The files-only install leaves the default `hyprlock.conf` unchanged; use the Re:Zero launcher. The source snippet replaces **Super + L** using `unbind` before `bind`.
-
-Hyprland versions using a different configuration language need equivalent binding/startup entries in that format; the installer does not rewrite Lua configurations.
+For symlinked configs or a dotfile manager, run `python3 install.py --backend hyprlock` without `--enable`, then add the printed include line to the configuration managed by your dotfile tool. In Lua this is `dofile(".../rezero/hyprland.lua")`; in `.conf` it is `source = .../rezero/hyprland.conf`. Both snippets are generated. Add `--no-idle` if your setup already starts an idle daemon. The files-only install leaves the default `hyprlock.conf` unchanged; use the Re:Zero launcher. The snippet replaces **Super + L** using `hl.unbind` before `hl.bind` in Lua, or `unbind` before `bind` in `.conf`.
 
 ## Customize
 
@@ -120,7 +118,7 @@ The installer respects `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_STATE_HOME`.
 
 ## Update and uninstall
 
-To update, run `git pull --ff-only`, then rerun the same installation command and flags. Changed managed files are saved under `~/.local/state/rezero-hyprlock/preserved/` before replacement; reapply desired customizations afterward. The original files remain in `originals/`, and the pre-enable Hyprland config is saved as `hyprland.conf.before-enable`.
+To update, run `git pull --ff-only`, then rerun the same installation command and flags. Changed managed files are saved under `~/.local/state/rezero-hyprlock/preserved/` before replacement; reapply desired customizations afterward. The original files remain in `originals/`, and the pre-enable Hyprland config is saved as `hyprland.lua.before-enable` or `hyprland.conf.before-enable`.
 
 To uninstall, while the desktop is unlocked:
 
@@ -128,7 +126,7 @@ To uninstall, while the desktop is unlocked:
 python3 install.py --uninstall
 ```
 
-This removes the managed source block, restores the previous default Hyprlock configuration and any replaced files, and preserves unrelated changes to `hyprland.conf`. Then log out and log back in. If you integrated manually, remove your source entry and restore the lock commands in your existing idle setup yourself. Backups are retained; dependencies are not removed.
+This removes managed include blocks from both Hyprland formats, restores the previous default Hyprlock configuration and any replaced files, and preserves unrelated changes to your Hyprland configuration. Then log out and log back in. If you integrated manually, remove your include entry and restore the lock commands in your existing idle setup yourself. Backups are retained; dependencies are not removed.
 
 If the lock UI cannot authenticate, use **Ctrl + Alt + F3**, log in to your own account, and inspect your distro's Hyprlock/PAM setup. Fix the theme or end the affected graphical session after saving what you can. Removing theme files is not an unlock mechanism. Do not configure a passwordless PAM policy as a workaround.
 

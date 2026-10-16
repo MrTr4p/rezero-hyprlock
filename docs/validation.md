@@ -1,5 +1,13 @@
 # Validation record
 
+## Lua Hyprland installer — 2026-10-16
+
+- **27 installer/launcher tests passed** across QuickShell and static Hyprlock, including automatic Lua selection, explicit format selection, repeat enable, rollback of both formats, symlink handling, and idle conflicts in Lua files. Existing `.conf` behavior remains covered.
+- The actual Lua interpreter loaded the installed main configuration and its generated snippet using paths containing spaces, apostrophes, double quotes, and Japanese characters. The binding resolved to the installed launcher, idle startup waited for the `hyprland.start` callback, and `--no-idle` registered no startup callback.
+- **Hyprland 0.56.2 `--verify-config` returned `config ok` for both Lua and `.conf` installations**, including their generated include, binding, and idle startup entries. These checks used temporary homes; dependency stubs satisfied installation preflight without launching a locker or idle daemon. Logs are in the ignored `validation/lua-config/results.json`.
+
+These are installer and configuration checks. The runtime lock-screen checks below describe the previously validated locker; this change does not alter its QML or authentication.
+
 ## Installed QuickShell locker — 2026-10-16
 
 Validated with **QuickShell 0.3.1, Qt 6.11.2, Hyprland 0.56.2, and Hypridle 0.1.8** on Arch Linux. Tests install copied runtime files into a temporary home with spaces in its path and run a separate nested compositor. The author's active desktop configuration is not modified.

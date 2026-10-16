@@ -29,7 +29,15 @@ python3 install.py --enable
 
 Optional real audio spectrum: install `cava`. Without it, the spectrum is marked offline; Spotify controls work independently. Use Spotify's Linux desktop app for the Spotify panel. A browser tab alone does not expose the desktop Spotify MPRIS identity and does not activate this panel.
 
-The installer copies all runtime files, backs up files it replaces, and adds a managed source block to `hyprland.conf`. It does not start a locker or reload the desktop. **Log out and back in** when ready so Hyprland starts the supplied idle daemon at login. Then:
+The installer copies all runtime files, backs up files it replaces, and adds a managed include block to your Hyprland configuration. It automatically uses **`hyprland.lua` when present**, otherwise `hyprland.conf`. Lua uses `dofile(...)`, `hl.bind(...)`, and a `hyprland.start` callback for the idle daemon. If both files exist, Lua takes precedence; use `--hyprland-format conf` to select the older format explicitly.
+
+To select Lua explicitly:
+
+```sh
+python3 install.py --enable --hyprland-format lua
+```
+
+It does not start a locker or reload the desktop. **Log out and back in** when ready so Hyprland starts the supplied idle daemon at login. Then:
 
 ```sh
 ~/.local/bin/rezero-lock
@@ -58,7 +66,15 @@ listener {
 }
 ```
 
-Run one idle daemon. The installer refuses automatic idle integration if it detects an existing configuration or active/enabled `hypridle.service`. For symlinked or managed dotfiles, install without `--enable` and source the generated `~/.config/hypr/rezero/hyprland.conf` from your own configuration. The generated binding replaces Super + L. The installer supports Hyprland's `.conf` format; other configuration formats need equivalent manual integration.
+Run one idle daemon. The installer checks both `.lua` and `.conf` files for existing idle startup commands and refuses automatic idle integration if it detects an existing setup or active/enabled `hypridle.service`. The generated binding replaces Super + L.
+
+For symlinked or managed dotfiles, install without `--enable`, then add the printed include line to your own configuration. Both snippets are generated. For Lua, use the actual installed path, or this equivalent default-path include:
+
+```lua
+dofile(os.getenv("HOME") .. "/.config/hypr/rezero/hyprland.lua")
+```
+
+For `.conf`, use `source = ~/.config/hypr/rezero/hyprland.conf`. Add `--no-idle` to the installation command if your setup already starts an idle daemon. Custom `XDG_CONFIG_HOME` paths are reflected in the installer's printed include line.
 
 ## Customize, update, or uninstall
 
@@ -108,4 +124,4 @@ python3 tests/quickshell_smoke.py
 
 Unofficial Re:Zero fan theme adapted from [MrTr4p/rezero-sddm](https://github.com/MrTr4p/rezero-sddm). [Artwork provenance](docs/artwork.md).
 
-Backend references: [QuickShell session locking](https://quickshell.org/docs/v0.3.1/types/Quickshell.Wayland/WlSessionLock/), [PAM authentication](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pam/PamContext/), and [MPRIS player controls](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Mpris/MprisPlayer/).
+Backend references: [QuickShell session locking](https://quickshell.org/docs/v0.3.1/types/Quickshell.Wayland/WlSessionLock/), [PAM authentication](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pam/PamContext/), and [MPRIS player controls](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Mpris/MprisPlayer/). Hyprland Lua references: [key bindings](https://wiki.hypr.land/configuring/core/binds/) and [autostart](https://wiki.hypr.land/configuring/core/autostart/).

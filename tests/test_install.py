@@ -1,6 +1,8 @@
 """Installer behavior tests. All writes go to TemporaryDirectory destinations."""
 import os
 from pathlib import Path
+import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -89,6 +91,131 @@ class InstallTests(unittest.TestCase):
         self.home = Path(self.temp.name) / "bad#path"
         self.run_install(ok=False)
         self.assertFalse(self.home.exists())
+
+    def use_lua_config(self):
+        self.main = self.config / "hyprland.lua"
+        self.original_lua = '-- Friend\'s Lua configuration\nlocal mainMod = "SUPER"\n'
+        self.main.write_text(self.original_lua)
+
+    def test_lua_auto_enable_update_and_rollback(self):
+        # A leftover .conf must not take precedence over the Lua configuration.
+        conf = self.main
+        self.use_lua_config()
+        self.run_install("--enable")
+        self.run_install("--enable")
+        self.assertEqual(conf.read_text(), self.original)
+        self.assertEqual(self.main.read_text().count("-- BEGIN REZERO"), 1)
+        self.assertIn("dofile(", self.main.read_text())
+        self.assertNotIn("source =", self.main.read_text())
+        backup = self.home / ".local/state/rezero-hyprlock/hyprland.lua.before-enable"
+        self.assertEqual(backup.read_text(), self.original_lua)
+        with self.main.open("a") as stream:
+            stream.write("-- later unrelated edit\n")
+        self.run_install("--uninstall")
+        self.assertIn(self.original_lua, self.main.read_text())
+        self.assertIn("-- later unrelated edit", self.main.read_text())
+        self.assertNotIn("REZERO", self.main.read_text())
+        self.assertEqual(conf.read_text(), self.original)
+        self.assertFalse((self.config / "rezero/hyprland.lua").exists())
+
+    def test_lua_conflicting_idle_fails_before_writes(self):
+        self.use_lua_config()
+        startup = self.config / "startup.lua"
+        startup.write_text('hl.exec_cmd("env --quiet hypridle") -- existing daemon\n')
+        result = self.run_install("--enable", ok=False)
+        self.assertIn(str(startup), result.stderr)
+        self.assertIn("--no-idle", result.stderr)
+        self.assertEqual(self.main.read_text(), self.original_lua)
+        self.assertFalse((self.config / "rezero").exists())
+        self.run_install("--enable", "--no-idle")
+        self.assertNotIn("hyprland.start", (self.config / "rezero/hyprland.lua").read_text())
+
+    def test_lua_commented_idle_is_ignored(self):
+        self.use_lua_config()
+        with self.main.open("a") as stream:
+            stream.write('-- hl.exec_cmd("hypridle")\n')
+            stream.write('--[[\nhl.exec_cmd("swayidle")\n]]\n')
+            stream.write('--[=[\nhl.exec_cmd("hypridle")\n]=]\n')
+        self.run_install("--enable")
+
+    def test_explicit_format_and_uninstall_both_formats(self):
+        conf = self.main
+        self.use_lua_config()
+        self.run_install("--enable")
+        lua_enabled = self.main.read_text()
+        self.run_install("--enable", "--hyprland-format", "conf")
+        self.assertIn("# BEGIN REZERO", conf.read_text())
+        self.assertEqual(self.main.read_text(), lua_enabled)
+        self.run_install("--uninstall")
+        self.assertNotIn("REZERO", conf.read_text())
+        self.assertNotIn("REZERO", self.main.read_text())
+
+    def test_lua_staging_and_missing_main(self):
+        self.main.unlink()
+        result = self.run_install("--enable", "--hyprland-format", "lua", ok=False)
+        self.assertIn("regular hyprland.lua", result.stderr)
+        self.assertFalse((self.config / "rezero").exists())
+        result = self.run_install("--hyprland-format", "lua")
+        self.assertIn("add to hyprland.lua:", result.stdout)
+        self.assertIn("dofile(", result.stdout)
+        self.assertFalse((self.config / "hyprland.lua").exists())
+
+    def test_lua_symlink_preflight(self):
+        external = self.home / "external.lua"
+        external.write_text('-- managed by another tool\n')
+        (self.config / "hyprland.lua").symlink_to(external)
+        self.run_install("--enable", ok=False)
+        self.assertEqual(external.read_text(), '-- managed by another tool\n')
+        self.assertFalse((self.config / "rezero").exists())
+        result = self.run_install()
+        self.assertIn("add to hyprland.lua:", result.stdout)
+        # An unrelated symlink should not prevent removing staged runtime files.
+        self.run_install("--uninstall")
+        self.assertTrue((self.config / "hyprland.lua").is_symlink())
+
+    @unittest.skipUnless(shutil.which("lua"), "Lua interpreter is optional")
+    def test_lua_loads_with_quoted_paths_and_defers_idle_until_start(self):
+        new_home = self.home.with_name('friend\'s "Lua" home 日本')
+        self.home.rename(new_home)
+        self.home = new_home
+        self.config = self.home / ".config/hypr"
+        self.use_lua_config()
+        harness = '''
+local unbound, command, startup
+local executions = 0
+hl = {
+    unbind = function(key) assert(key == "SUPER + L"); unbound = true end,
+    dsp = { exec_cmd = function(cmd) return cmd end },
+    bind = function(key, cmd)
+        assert(unbound and key == "SUPER + L")
+        command = cmd
+    end,
+    on = function(event, callback)
+        assert(event == "hyprland.start" and startup == nil)
+        startup = callback
+    end,
+    exec_cmd = function(cmd) executions = executions + 1; print(cmd) end,
+}
+dofile(arg[1])
+assert(command and executions == 0)
+print(command)
+if arg[2] == "idle" then
+    assert(type(startup) == "function")
+    startup()
+    assert(executions == 1)
+else
+    assert(startup == nil)
+end
+'''
+        for no_idle in [False, True]:
+            with self.subTest(no_idle=no_idle):
+                self.run_install("--enable", *(["--no-idle"] if no_idle else []))
+                result = subprocess.run(["lua", "-", str(self.main), "no-idle" if no_idle else "idle"], input=harness, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                expected = [[str(self.home / ".local/bin/rezero-lock")]]
+                if not no_idle:
+                    expected.append([str(self.home / ".local/bin/rezero-idle")])
+                self.assertEqual([shlex.split(line) for line in result.stdout.splitlines()], expected)
 
 
 class QuickshellInstallTests(InstallTests):
