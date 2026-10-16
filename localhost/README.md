@@ -1,3 +1,5 @@
+> Archived browser demo. For the real installed QuickShell locker, use the [main installation guide](../README.md). This older demo is kept only for reference.
+
 # Full Re:Zero lock-screen design — localhost preview
 
 This preview restores the original Re:Zero composition and interactions. It is a design preview with mock authentication and power actions, not an installed system locker.
@@ -15,22 +17,22 @@ Open **http://localhost:8772/**. Type **`test`** in the password field and press
 The complete layout includes:
 
 - Re:Zero title, Japanese subtitle, quote, framed artwork, and bottom ribbon.
-- Hair sway on the original wallpaper, drifting feathers, animated wind header, breathing compass, and hover effects.
+- Drifting feathers, animated wind header, breathing compass, and hover effects. Character artwork is still.
 - Current Hyprland session panel and account/password form, including reveal, Caps Lock, and Escape-to-clear feedback.
 - Clock, date, hostname greeting, live CPU/RAM/swap values, battery, and CAVA spectrum when available.
 - Synthesized ambience with play/pause, volume, and mute. Audio starts paused.
 - Power-off, restart, and sleep dialogs whose actions are simulated only.
 - Browser controls for all three wallpapers, resetting the demo, and full screen.
 
-For reduced motion, set `Animations=false` in `localhost/theme/theme.conf`, then use Reset in the browser. Hair sway is automatically limited to the original portrait; the alternate landscapes retain feather motion.
+For reduced motion, set `Animations=false` in `localhost/theme/theme.conf`, then use Reset in the browser.
 
 ## Dependencies on a fresh Arch computer
 
-Start with the [complete installation guide](../README.md#install-and-run-the-full-preview-on-arch-linux), which includes cloning the repository. The commands below assume you are already in the repository root.
+The commands below assume you have cloned the repository and are in its root.
 
 ```sh
 sudo pacman -S --needed base-devel git python qt6-base qt6-declarative \
-  qt6-multimedia qt6-svg qt6-shadertools mesa xorg-server-xvfb x11vnc \
+  qt6-multimedia qt6-svg mesa xorg-server-xvfb x11vnc \
   cava ttf-jetbrains-mono noto-fonts-cjk
 python3 -m venv "$HOME/.local/share/rezero-lock-preview/venv"
 "$HOME/.local/share/rezero-lock-preview/venv/bin/pip" install -r localhost/preview/requirements.txt
@@ -58,6 +60,6 @@ Logs are written under `localhost/runtime/`, excluded from Git. Stopping the ser
 
 The QML interaction suite verifies the read-only current account, password validation, duplicate submission handling, reveal/clear, simulated unlock, power confirmation/cancel, and audio controls. It does not authenticate a real user or execute system power commands.
 
-For the full animated design as an actual Hyprland locker, the QML must be connected to a session-lock and PAM backend. Quickshell provides those primitives. The separately supplied Hyprlock config cannot execute this QML scene. See [Quickshell session locking](https://quickshell.org/docs/v0.3.1/types/Quickshell.Wayland/WlSessionLock/) and [Hyprlock's widgets](https://wiki.hypr.land/Hypr-Ecosystem/hyprlock/).
+The supported [QuickShell installation](../README.md) connects the full design to real session locking, PAM, and Spotify controls. This archived browser demo continues to use simulated authentication and ambience audio.
 
 Artwork comes from [the original Re:Zero theme](https://github.com/MrTr4p/rezero-sddm). Vendored noVNC retains its [upstream license](preview/vendor/novnc/LICENSE.txt).

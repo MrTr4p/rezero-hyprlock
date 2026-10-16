@@ -4,11 +4,10 @@ Item {
     id: background
     property url source
     property bool motionEnabled: true
-    property bool hairSwayEnabled: true
     property real elapsedMs: 0
     clip: true
 
-    // Share a 30 fps clock across the background layers to keep previews responsive.
+    // One 30 fps clock drives every feather.
     Timer {
         property real startedAt: Date.now()
         interval: 33; repeat: true
@@ -17,16 +16,11 @@ Item {
         onTriggered: background.elapsedMs = Date.now() - startedAt
     }
 
-    // The wind deforms the flowing hair locally, keeping the face and city steady.
-    WindArtwork {
-        id: artwork
-        objectName: "backgroundArtwork"
-        anchors.centerIn: parent
-        width: parent.width; height: parent.height
+    // Keep the character artwork still; only the separate feathers move.
+    Image {
+        anchors.fill: parent
         source: background.source
-        motionEnabled: background.motionEnabled
-        hairSwayEnabled: background.hairSwayEnabled
-        elapsedMs: background.elapsedMs
+        fillMode: Image.PreserveAspectCrop
         opacity: 0.86
     }
     Rectangle { anchors.fill: parent; color: "#15f6f3eb" }

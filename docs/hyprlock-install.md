@@ -1,6 +1,6 @@
 # Optional Hyprlock installation
 
-This installs the **simpler static Hyprlock design**, not the full animated localhost preview. For the full preview, use the [main setup guide](../README.md#install-and-run-the-full-preview-on-arch-linux).
+This installs the **simpler static Hyprlock design**. The full design is now an installable [QuickShell locker](../README.md).
 
 An ivory and lavender **lock screen for Hyprland**, adapted from [the Re:Zero SDDM design](https://github.com/MrTr4p/rezero-sddm). Unlock your existing session with your normal Linux password.
 
@@ -30,7 +30,7 @@ Run as your normal desktop user, **without sudo**:
 ```sh
 git clone https://github.com/MrTr4p/rezero-hyprlock.git
 cd rezero-hyprlock
-python3 install.py --enable
+python3 install.py --backend hyprlock --enable
 ```
 
 The installer copies the artwork to `~/.local/share/rezero-hyprlock/`, creates configuration under `~/.config/hypr/rezero/`, and installs two launchers in `~/.local/bin/`. It backs up an existing default `hyprlock.conf`, makes bare `hyprlock` use this theme, and adds one managed `source` block to `hyprland.conf`. It does not launch the locker, reload Hyprland, or change the login manager.
@@ -73,7 +73,7 @@ The launcher requires an active Wayland session and the distro's Hyprlock PAM fi
 Keep your existing idle daemon and install only the theme/key binding:
 
 ```sh
-python3 install.py --enable --no-idle
+python3 install.py --backend hyprlock --enable --no-idle
 ```
 
 For an existing **Hypridle** configuration, edit its current `general` block to use these values, preserving unrelated settings:
@@ -98,7 +98,7 @@ listener {
 
 Edit the existing blocks rather than creating competing listeners. Keep your existing Hypridle startup method. If you migrate from Swayidle, remove its startup entry and stop using it at the next login before enabling Re:Zero's Hypridle snippet. For lock menu buttons or other shortcuts, point their command to `~/.local/bin/rezero-lock`.
 
-For symlinked configs or a dotfile manager, run `python3 install.py` without `--enable`, then add the printed `source = .../rezero/hyprland.conf` line to the configuration managed by your dotfile tool. Add `--no-idle` if your setup already starts an idle daemon. The files-only install leaves the default `hyprlock.conf` unchanged; use the Re:Zero launcher. The source snippet replaces **Super + L** using `unbind` before `bind`.
+For symlinked configs or a dotfile manager, run `python3 install.py --backend hyprlock` without `--enable`, then add the printed `source = .../rezero/hyprland.conf` line to the configuration managed by your dotfile tool. Add `--no-idle` if your setup already starts an idle daemon. The files-only install leaves the default `hyprlock.conf` unchanged; use the Re:Zero launcher. The source snippet replaces **Super + L** using `unbind` before `bind`.
 
 Hyprland versions using a different configuration language need equivalent binding/startup entries in that format; the installer does not rewrite Lua configurations.
 

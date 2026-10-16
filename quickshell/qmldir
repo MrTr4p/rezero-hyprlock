@@ -1,0 +1,10 @@
+singleton Settings 1.0 Settings.qml
+Session 1.0 Session.qml
+LockView 1.0 LockView.qml
+SessionNote 1.0 SessionNote.qml
+SpotifyPanel 1.0 SpotifyPanel.qml
+AnimatedBackground 1.0 AnimatedBackground.qml
+WindRibbon 1.0 WindRibbon.qml
+Panel 1.0 Panel.qml
+ThemeButton 1.0 ThemeButton.qml
+ThemeText 1.0 ThemeText.qml

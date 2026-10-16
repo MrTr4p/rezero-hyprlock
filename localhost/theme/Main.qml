@@ -11,8 +11,6 @@ Rectangle {
     readonly property real sceneScale: Math.min(width / 1920, height / 1080)
     readonly property bool animations: config.stringValue("Animations") !== "false"
     readonly property string backgroundPath: config.stringValue("Background") || "assets/background.png"
-    readonly property bool hairSway: config.stringValue("HairSway") === "true" ||
-                                    (config.stringValue("HairSway") !== "false" && backgroundPath === "assets/background.png")
     readonly property bool preview: typeof previewMode !== "undefined" && previewMode
     readonly property string telemetryUrl: config.stringValue("TelemetryUrl")
     property var clock: new Date()
@@ -95,7 +93,6 @@ Rectangle {
             x: 0; y: 56; width: 1920; height: 968
             source: root.backgroundPath
             motionEnabled: root.animations
-            hairSwayEnabled: root.hairSway
         }
         // Fine architectural rules frame the artwork without boxing in the composition.
         Rectangle { x: 12; y: 68; width: 1896; height: 944; color: "transparent"; border.color: "#5a877b9b"; border.width: 1 }

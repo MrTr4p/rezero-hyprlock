@@ -23,14 +23,14 @@ class InstallTests(unittest.TestCase):
         # These stubs are not used for locking or authentication.
         stub = Path(self.temp.name) / "bin"
         stub.mkdir()
-        for name in ["hyprlock", "hypridle", "hyprctl"]:
+        for name in ["hyprlock", "quickshell", "hypridle", "hyprctl"]:
             f = stub / name
             f.write_text("#!/bin/sh\nexit 99\n")
             f.chmod(0o755)
         self.env = dict(os.environ, PATH=str(stub) + ":" + os.environ["PATH"])
 
     def run_install(self, *flags, ok=True):
-        result = subprocess.run([sys.executable, str(ROOT / "install.py"), "--target-home", str(self.home), *flags], env=self.env, text=True, capture_output=True)
+        result = subprocess.run([sys.executable, str(ROOT / "install.py"), "--backend", "hyprlock", "--target-home", str(self.home), *flags], env=self.env, text=True, capture_output=True)
         self.assertEqual(result.returncode == 0, ok, result.stdout + result.stderr)
         return result
 
@@ -89,6 +89,55 @@ class InstallTests(unittest.TestCase):
         self.home = Path(self.temp.name) / "bad#path"
         self.run_install(ok=False)
         self.assertFalse(self.home.exists())
+
+
+class QuickshellInstallTests(InstallTests):
+    """Exercise the new default backend and shared rollback behavior."""
+    def run_install(self, *flags, ok=True):
+        result = subprocess.run([sys.executable, str(ROOT / "install.py"), "--target-home", str(self.home), *flags], env=self.env, text=True, capture_output=True)
+        self.assertEqual(result.returncode == 0, ok, result.stdout + result.stderr)
+        return result
+
+    def test_stage_does_not_enable(self):
+        self.run_install()
+        self.assertEqual(self.main.read_text(), self.original)
+        self.assertFalse((self.config / "hyprlock.conf").exists())
+        launcher = self.home / ".local/bin/rezero-lock"
+        self.assertIn("quickshell --no-duplicate --path", launcher.read_text())
+        shell = self.home / ".config/quickshell/rezero"
+        self.assertTrue((shell / "shell.qml").is_file())
+        self.assertTrue((shell / "telemetry.py").is_file())
+        self.assertTrue((shell / "assets/background.png").is_file())
+        self.assertFalse(list(shell.rglob("*.qsb")))
+
+    def test_user_edits_are_saved_on_update_and_uninstall(self):
+        self.run_install()
+        settings = self.home / ".config/quickshell/rezero/Settings.qml"
+        settings.write_text("// custom wallpaper\n")
+        self.run_install()
+        backups = self.home / ".local/state/rezero-hyprlock/preserved"
+        self.assertIn("// custom wallpaper\n", [f.read_text() for f in backups.iterdir()])
+        settings.write_text("// custom animation setting\n")
+        self.run_install("--uninstall")
+        self.assertIn("// custom animation setting\n", [f.read_text() for f in backups.iterdir()])
+
+    def test_symlink_preflight(self):
+        external = self.home / "external"
+        external.mkdir()
+        (self.home / ".config/quickshell").symlink_to(external, target_is_directory=True)
+        self.run_install("--enable", ok=False)
+        self.assertFalse(list(external.iterdir()))
+        self.assertFalse((self.home / ".local/bin/rezero-lock").exists())
+
+    def test_launcher_guard_does_not_leak_to_descendants(self):
+        self.run_install()
+        stub = Path(self.env["PATH"].split(":")[0]) / "hypridle"
+        stub.write_text("#!/bin/sh\nsleep 2 >/dev/null 2>&1 &\nexit 0\n")
+        env = dict(self.env, XDG_RUNTIME_DIR=self.temp.name, WAYLAND_DISPLAY="test-display")
+        subprocess.run([str(self.home / ".local/bin/rezero-idle")], env=env, check=True, timeout=2)
+        guard = Path(self.temp.name) / "rezero-idle-test-display.lock"
+        result = subprocess.run(["flock", "--nonblock", str(guard), "true"], env=env)
+        self.assertEqual(result.returncode, 0, "A background descendant retained the launcher guard")
 
 
 if __name__ == "__main__":

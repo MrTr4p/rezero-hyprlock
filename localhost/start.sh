@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")"
-if [ ! -f theme/shaders/hair-wind.vert.qsb ] || [ theme/shaders/hair-wind.vert -nt theme/shaders/hair-wind.vert.qsb ]; then ./theme/shaders/build.sh; fi
 if [ ! -x preview/qt-preview ] || [ preview/preview.cpp -nt preview/qt-preview ] || [ preview/context.h -nt preview/qt-preview ]; then ./preview/build.sh; fi
 if ! systemctl --user is-active --quiet rezero-lock-localhost.service; then
     systemd-run --user --collect --unit=rezero-lock-localhost --description='Re:Zero animated lock-screen localhost preview' \

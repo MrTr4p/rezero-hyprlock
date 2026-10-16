@@ -1,108 +1,111 @@
-# Re:Zero — Another Beginning · Lock-screen preview
+# Re:Zero — Another Beginning · QuickShell lock screen
 
-The full Re:Zero interface as an interactive **localhost preview**: animated hair and feathers, wind ribbon, session/account panels, CPU/RAM/swap statistics, CAVA spectrum, ambience controls, battery/layout footer, and power dialogs. The central action is **Unlock**.
+An installable **Wayland lock screen for Hyprland**, preserving the ivory and lavender Re:Zero design. QuickShell provides real session locking and PAM authentication. Unlock with your existing Linux password.
 
-![Full animated Re:Zero preview](docs/localhost-preview.png)
+![Re:Zero QuickShell lock screen with Spotify](docs/quickshell-lockscreen.png)
 
-This version previews the complete design in your browser. Unlock and power actions are simulated; it does not install or activate a system locker. Use the demo password **`test`**, not your real password.
+Captured from the installed locker in nested Hyprland. Spotify metadata in this capture comes from the MPRIS test service. [Without Spotify](docs/quickshell-no-spotify.png).
 
-## Install and run the full preview on Arch Linux
+- Original three-column layout, artwork, clock, account form, system statistics, and power confirmations.
+- Drifting feathers and the wind ribbon; the character artwork stays still. The hair distortion shader has been removed.
+- A quiet **Spotify** panel with cover art, track/artist, previous, play/pause, and next. It appears only when the Spotify desktop app exposes a controllable MPRIS player. Unsupported controls are disabled. No API key or Spotify login is stored by the theme.
+- The session note follows the reference: `CURRENT SESSION: HYPRLAND`, a personal greeting, a fine star divider, and the two fate lines on the wallpaper.
+- Super + L, optional five-minute idle locking, and locking before suspend through Hypridle. Every monitor receives a lock surface, including monitors connected while locked.
 
-Run these steps on the computer where you want to view the preview. Use your normal desktop account; only the package installation uses `sudo`. A graphical Linux session with a working systemd user session is required.
+The session label names the desktop you are resuming. It is not a login-manager session chooser.
 
-### 1. Install dependencies
+## Install on Arch Linux
 
-On an up-to-date Arch Linux installation:
-
-```sh
-sudo pacman -S --needed base-devel git python qt6-base qt6-declarative \
-  qt6-multimedia qt6-svg qt6-shadertools mesa xorg-server-xvfb x11vnc \
-  cava ttf-jetbrains-mono noto-fonts-cjk
-```
-
-Other distributions need equivalent Qt 6, Xvfb, x11vnc, CAVA, compiler, and Python packages. SDDM, Hyprlock, Sway, and Quickshell are not needed for the browser preview.
-
-### 2. Download the project
-
-Run these commands from the directory where you keep your projects:
+Run these commands on the computer that will use the lock screen, inside an existing Hyprland desktop. Install current distribution packages together; QuickShell and Qt must have compatible versions.
 
 ```sh
+sudo pacman -S --needed git python quickshell qt6-svg hypridle util-linux glib2 \
+  ttf-jetbrains-mono noto-fonts-cjk
+
 git clone https://github.com/MrTr4p/rezero-hyprlock.git
 cd rezero-hyprlock
+python3 install.py --enable
 ```
 
-If you already cloned it, enter the checkout and run `git pull --ff-only` instead.
+Optional real audio spectrum: install `cava`. Without it, the spectrum is marked offline; Spotify controls work independently. Use Spotify's Linux desktop app for the Spotify panel. A browser tab alone does not expose the desktop Spotify MPRIS identity and does not activate this panel.
 
-### 3. Set up the preview's Python environment
+The installer copies all runtime files, backs up files it replaces, and adds a managed source block to `hyprland.conf`. It does not start a locker or reload the desktop. **Log out and back in** when ready so Hyprland starts the supplied idle daemon at login. Then:
 
 ```sh
-python3 -m venv "$HOME/.local/share/rezero-lock-preview/venv"
-"$HOME/.local/share/rezero-lock-preview/venv/bin/pip" install -r localhost/preview/requirements.txt
+~/.local/bin/rezero-lock
 ```
 
-This keeps the WebSocket bridge's Python dependencies in their own environment. You do not need to activate it; the launcher finds it automatically.
+Unlock with your Linux password. Enter submits; Escape clears input. Check Super + L, `loginctl lock-session`, inactivity, and an actual suspend/resume cycle on that machine. The theme uses the distribution's existing `/etc/pam.d/login` authentication policy; it does not install or weaken PAM rules.
 
-### 4. Start and open the preview
+Already have **Hypridle, Swayidle, a dotfile suite, or another lock shortcut**? Use:
 
 ```sh
-./localhost/start.sh
+python3 install.py --enable --no-idle
 ```
 
-Open **[http://localhost:8772/](http://localhost:8772/)** on the same computer. The first launch compiles the small Qt preview program. Type **`test`** and press Enter or click Unlock. An incorrect nonempty password demonstrates the error state; successful demo unlock resets after a short pause.
+Then point your existing lock commands to `~/.local/bin/rezero-lock`. For Hypridle, update the existing blocks, preserving your other settings:
 
-The bottom toolbar switches between three wallpapers, resets the scene, and opens full screen. Audio starts paused. The power buttons open confirmation dialogs, but never power off, restart, or suspend the computer.
-
-### 5. Stop or start it again
-
-From the repository root:
-
-```sh
-./localhost/stop.sh
-# Start it again whenever you want:
-./localhost/start.sh
+```ini
+general {
+    lock_cmd = ~/.local/bin/rezero-lock
+    before_sleep_cmd = ~/.local/bin/rezero-lock
+    after_sleep_cmd = hyprctl dispatch dpms on
+    inhibit_sleep = 3
+}
+listener {
+    timeout = 300
+    on-timeout = ~/.local/bin/rezero-lock
+}
 ```
 
-The preview uses a transient systemd user service, **`rezero-lock-localhost.service`**, and an isolated Xvfb display. It does not change your Hyprland/SDDM settings, bind a lock shortcut, or start at boot. The copied source and assets stay in this checkout; keep it available while using the preview.
+Run one idle daemon. The installer refuses automatic idle integration if it detects an existing configuration or active/enabled `hypridle.service`. For symlinked or managed dotfiles, install without `--enable` and source the generated `~/.config/hypr/rezero/hyprland.conf` from your own configuration. The generated binding replaces Super + L. The installer supports Hyprland's `.conf` format; other configuration formats need equivalent manual integration.
 
-## Update, troubleshoot, or remove the preview
+## Customize, update, or uninstall
 
-To update, stop the preview, pull changes, refresh the bridge dependency, and start again:
+Edit `~/.config/quickshell/rezero/Settings.qml`:
+
+```qml
+property bool animations: true                 // false for reduced motion
+property string background: "assets/background.png"
+property string pamService: "login"            // existing system PAM policy
+```
+
+Alternate backgrounds: `assets/royal-capital.png` and `assets/moonlit-forest.png`. There is no hair sway option. CPU/RAM/swap, keyboard layout, Caps Lock, and battery come from local system data. Power buttons are enabled only when logind allows the action without another authentication dialog; confirmation runs the real system action.
+
+Runtime files live in `~/.config/quickshell/rezero/`; idle and Hyprland snippets live in `~/.config/hypr/rezero/`. Launchers live in `~/.local/bin/`. The checkout can be moved or removed after installation. `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_STATE_HOME` are respected. No browser, HTTP server, compiler, or demo password is involved in the installed locker.
+
+To update, pull and rerun your original installation flags:
 
 ```sh
-./localhost/stop.sh
 git pull --ff-only
-"$HOME/.local/share/rezero-lock-preview/venv/bin/pip" install -r localhost/preview/requirements.txt
-./localhost/start.sh
+python3 install.py --enable
 ```
 
-For startup problems:
+Updates back up edited managed files before replacing them. Reapply your settings from `~/.local/state/rezero-hyprlock/preserved/` afterward. Original copies remain in `originals/`. Update while the screen is unlocked, because QuickShell can reload configuration changes.
+
+To uninstall while unlocked:
 
 ```sh
-journalctl --user -u rezero-lock-localhost.service -n 40 --no-pager
+python3 install.py --uninstall
 ```
 
-Additional logs are in `localhost/runtime/`, especially `login.log`, `vnc.log`, and `websocket.log`. If ports are occupied, stop the other preview instance before starting this one. HTTP uses `8772`, WebSocket `6072`, and VNC `5972`, all on loopback; Xvfb uses `:172`.
+This restores replaced files and removes the managed Hyprland source block while preserving unrelated edits. Log out and back in to stop using the managed idle daemon. Manual integrations need to be removed manually. Dependencies and backups are retained.
 
-If `systemd-run --user` cannot connect, run the launcher from a terminal inside your logged-in desktop session as your normal user. A CAVA offline indicator means audio monitoring is unavailable; it does not prevent the rest of the preview from working. See [the detailed preview guide](localhost/README.md) for tool-location overrides and reduced motion.
+If the locker cannot authenticate, switch to a TTY with Ctrl + Alt + F3 and inspect the selected PAM policy. QuickShell's session-lock protocol keeps the session locked if the locker crashes; killing the locker is not an unlock method. To recover its UI on Hyprland, enable `misc:allow_session_lock_restore` in your own configuration and rerun the launcher from a TTY with your graphical session's environment, or end the affected graphical session. Do not use passwordless PAM rules as a workaround.
 
-To remove the preview, run `./localhost/stop.sh`, then delete this checkout and the dedicated `~/.local/share/rezero-lock-preview/venv` directory if no longer needed. There is no system lock-screen configuration to restore. The package dependencies remain installed.
+## Static Hyprlock fallback and development
 
-## Actual Hyprland lock-screen installation
+The optional [static Hyprlock installation](docs/hyprlock-install.md) remains available with `python3 install.py --backend hyprlock --enable`. It uses a simpler static layout without feathers or media controls.
 
-The **full animated QML version above is currently a preview**, not an authenticating locker. A production version preserving that entire interface needs a QML-capable session-lock and PAM backend such as Quickshell. Hyprlock can reproduce labels, images, panels, and command-fed statistics, but cannot directly execute this Qt Quick scene, its hair shader, or its multimedia controls.
+The previous browser demo is archived under [`localhost/`](localhost/README.md); it is not the installed locker. The QuickShell version above is the supported installation.
 
-This repository also contains a **separate, simpler static Hyprlock theme**. If you want that version as a permanent system locker, follow the [Hyprlock installation guide](docs/hyprlock-install.md). It covers dependencies, backups, Super + L, idle/suspend locking, existing idle setups, updates, and uninstall. Its `install.py` does not install the full animated preview.
-
-## Validation and credits
-
-The full preview passed **30 native QML interaction checks** plus Chromium checks for demo unlock, all three wallpapers, and reset. [Validation details and limits](docs/validation.md).
-
-To rerun the QML checks after installing the preview dependencies:
+[Validation details](docs/validation.md) cover real nested Hyprland/PAM, MPRIS controls, multi-monitor coverage, idle locking, and simulated sleep integration. To reproduce on a Wayland desktop with the developer dependencies installed:
 
 ```sh
-./localhost/preview/test.sh
+python3 -m unittest discover -s tests -v
+python3 tests/quickshell_smoke.py
 ```
 
-Unofficial Re:Zero fan theme, adapted from [MrTr4p/rezero-sddm](https://github.com/MrTr4p/rezero-sddm). [Artwork provenance](docs/artwork.md). Vendored noVNC retains its [upstream license](localhost/preview/vendor/novnc/LICENSE.txt).
+Unofficial Re:Zero fan theme adapted from [MrTr4p/rezero-sddm](https://github.com/MrTr4p/rezero-sddm). [Artwork provenance](docs/artwork.md).
 
-References: [Hyprlock widgets](https://wiki.hypr.land/Hypr-Ecosystem/hyprlock/) and [Quickshell session locking](https://quickshell.org/docs/v0.3.1/types/Quickshell.Wayland/WlSessionLock/).
+Backend references: [QuickShell session locking](https://quickshell.org/docs/v0.3.1/types/Quickshell.Wayland/WlSessionLock/), [PAM authentication](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Pam/PamContext/), and [MPRIS player controls](https://quickshell.org/docs/v0.3.1/types/Quickshell.Services.Mpris/MprisPlayer/).

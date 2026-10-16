@@ -64,7 +64,7 @@ debug {
     disable_logs = false
 }
 """)
-        subprocess.run([sys.executable, str(ROOT / "install.py"), "--target-home", str(home)], env=env, check=True)
+        subprocess.run([sys.executable, str(ROOT / "install.py"), "--backend", "hyprlock", "--target-home", str(home)], env=env, check=True)
         pam = Path(runtime) / "pam.d"
         pam.mkdir()
         fixture = Path(runtime) / "pam-fixture.py"

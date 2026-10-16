@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install a per-user Hyprlock theme; never start a locker or reload Hyprland."""
+"""Install the Re:Zero QuickShell locker (or static Hyprlock fallback)."""
 
 import argparse
 import hashlib
@@ -99,9 +99,9 @@ class Installation:
         print("Log out and back in to stop using the old idle daemon.")
 
 
-def launcher(command, kind):
-    pam_check = '''if [ ! -r /etc/pam.d/hyprlock ]; then
-    echo "Missing /etc/pam.d/hyprlock; install your distribution's hyprlock package." >&2
+def launcher(command, kind, pam_service="hyprlock"):
+    pam_check = f'''if [ ! -r /etc/pam.d/{pam_service} ]; then
+    echo "Missing /etc/pam.d/{pam_service}; install your distribution's PAM login policy." >&2
     exit 1
 fi
 ''' if kind == "lock" else ""
@@ -115,8 +115,8 @@ fi
 : "${{WAYLAND_DISPLAY:?Run this inside your Hyprland session}}"
 {pam_check}\
 display=${{WAYLAND_DISPLAY##*/}}
-# flock holds the lock until the child exits; simultaneous requests are harmless.
-exec flock --nonblock --conflict-exit-code 0 "$XDG_RUNTIME_DIR/rezero-{kind}-$display.lock" {command}
+# The parent holds the guard; descendants must not inherit its descriptor.
+exec flock --nonblock --close --conflict-exit-code 0 "$XDG_RUNTIME_DIR/rezero-{kind}-$display.lock" {command}
 '''
 
 
@@ -130,7 +130,7 @@ def install(args):
         instance.uninstall()
         return
 
-    required = ["hyprlock", "flock"] + ([] if args.no_idle else ["hypridle", "hyprctl"])
+    required = [args.backend, "flock"] + ([] if args.no_idle else ["hypridle", "hyprctl"])
     missing = [name for name in required if not shutil.which(name)]
     if missing:
         raise ValueError("Install dependencies first. Missing: " + ", ".join(missing))
@@ -159,21 +159,33 @@ def install(args):
     config = p["config"] / "rezero"
     lock = p["bin"] / "rezero-lock"
     idle = p["bin"] / "rezero-idle"
-    planned = [config / "hyprlock.conf", config / "hypridle.conf", config / "hyprland.conf", lock, idle]
-    if args.enable:
+    shell = p["config"].parent / "quickshell" / "rezero"
+    planned = [config / "hypridle.conf", config / "hyprland.conf", lock, idle]
+    if args.backend == "quickshell":
+        planned.extend(shell / f.relative_to(SOURCE / "quickshell") for f in (SOURCE / "quickshell").rglob("*") if f.is_file() and "__pycache__" not in f.parts)
+    else:
+        planned.append(config / "hyprlock.conf")
+        planned.extend(p["data"] / "assets" / asset.name for asset in (SOURCE / "theme/assets").iterdir())
+    if args.enable and args.backend == "hyprlock":
         planned.append(p["config"] / "hyprlock.conf")
-    planned.extend(p["data"] / "assets" / asset.name for asset in (SOURCE / "theme/assets").iterdir())
     for path in planned:
-        if path.is_symlink():
+        if any(part.is_symlink() for part in [path, *path.parents]):
             raise ValueError(f"Refusing to replace symlink: {path}")
 
-    for asset in (SOURCE / "theme/assets").iterdir():
-        instance.write(p["data"] / "assets" / asset.name, asset.read_bytes())
-    template = (SOURCE / "theme/hyprlock.conf.in").read_text()
-    instance.write(config / "hyprlock.conf", template.replace("@ASSETS@", str(p["data"] / "assets")))
+    if args.backend == "quickshell":
+        for source in sorted((SOURCE / "quickshell").rglob("*")):
+            if source.is_file() and "__pycache__" not in source.parts:
+                instance.write(shell / source.relative_to(SOURCE / "quickshell"), source.read_bytes())
+        command = "env QT_QUICK_CONTROLS_STYLE=Basic quickshell --no-duplicate --path " + shlex.quote(str(shell / "shell.qml"))
+        instance.write(lock, launcher(command, "lock", "login"), 0o755)
+    else:
+        for asset in (SOURCE / "theme/assets").iterdir():
+            instance.write(p["data"] / "assets" / asset.name, asset.read_bytes())
+        template = (SOURCE / "theme/hyprlock.conf.in").read_text()
+        instance.write(config / "hyprlock.conf", template.replace("@ASSETS@", str(p["data"] / "assets")))
+        instance.write(lock, launcher("hyprlock --config " + shlex.quote(str(config / "hyprlock.conf")) + " --grace 0 --no-fade-in", "lock"), 0o755)
     template = (SOURCE / "theme/hypridle.conf.in").read_text()
     instance.write(config / "hypridle.conf", template.replace("@LOCK_COMMAND@", shlex.quote(str(lock))))
-    instance.write(lock, launcher("hyprlock --config " + shlex.quote(str(config / "hyprlock.conf")) + " --grace 0 --no-fade-in", "lock"), 0o755)
     instance.write(idle, launcher("hypridle --config " + shlex.quote(str(config / "hypridle.conf")), "idle"), 0o755)
     snippet = "# Re:Zero — sourced by Hyprland on every login.\n"
     snippet += "unbind = SUPER, L\nbind = SUPER, L, exec, " + shlex.quote(str(lock)) + "\n"
@@ -182,7 +194,8 @@ def install(args):
     instance.write(config / "hyprland.conf", snippet)
 
     if args.enable:
-        instance.write(p["config"] / "hyprlock.conf", "source = " + str(config / "hyprlock.conf") + "\n")
+        if args.backend == "hyprlock":
+            instance.write(p["config"] / "hyprlock.conf", "source = " + str(config / "hyprlock.conf") + "\n")
         text = main.read_text()
         block = BEGIN + "\nsource = " + str(config / "hyprland.conf") + "\n" + END
         if BEGIN in text:
@@ -199,13 +212,14 @@ def install(args):
         print("Installed files only. To enable at every login, add to hyprland.conf:")
         print("source = " + str(config / "hyprland.conf"))
     print("Manual lock: " + str(lock))
-    print("Configuration: " + str(config))
+    print("Configuration: " + str(shell if args.backend == "quickshell" else config))
     print("No session was locked, reloaded, or restarted.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--enable", action="store_true", help="back up the default lock config and add persistent Hyprland integration")
+    parser.add_argument("--backend", choices=["quickshell", "hyprlock"], default="quickshell", help="QuickShell by default; Hyprlock installs the simpler static fallback")
+    parser.add_argument("--enable", action="store_true", help="add persistent Hyprland key binding and idle integration")
     parser.add_argument("--no-idle", action="store_true", help="leave automatic locking to your existing idle daemon")
     parser.add_argument("--uninstall", action="store_true", help="restore backed-up files and remove the managed Hyprland block")
     parser.add_argument("--target-home", type=Path, help="use a separate directory for installation tests")

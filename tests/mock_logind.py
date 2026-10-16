@@ -14,6 +14,9 @@ bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.
 
 XML = """<node>
   <interface name="org.freedesktop.login1.Manager">
+    <method name="CanPowerOff"><arg type="s" direction="out"/></method>
+    <method name="CanReboot"><arg type="s" direction="out"/></method>
+    <method name="CanSuspend"><arg type="s" direction="out"/></method>
     <method name="GetSession"><arg type="s" direction="in"/><arg type="o" direction="out"/></method>
     <method name="Inhibit">
       <arg type="s" direction="in"/><arg type="s" direction="in"/>
@@ -32,7 +35,9 @@ XML = """<node>
 
 
 def called(connection, sender, path, interface, method, parameters, invocation):
-    if method == "GetSession":
+    if method in ["CanPowerOff", "CanReboot", "CanSuspend"]:
+        invocation.return_value(GLib.Variant("(s)", ("yes",)))
+    elif method == "GetSession":
         invocation.return_value(GLib.Variant("(o)", ("/org/freedesktop/login1/session/test",)))
     elif method == "Inhibit":
         # This FD is only a test token, never a host sleep inhibitor.

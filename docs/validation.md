@@ -1,5 +1,42 @@
 # Validation record
 
+## Installed QuickShell locker — 2026-10-16
+
+Validated with **QuickShell 0.3.1, Qt 6.11.2, Hyprland 0.56.2, and Hypridle 0.1.8** on Arch Linux. Tests install copied runtime files into a temporary home with spaces in its path and run a separate nested compositor. The author's active desktop configuration is not modified.
+
+- **13 installer/launcher tests passed** across QuickShell and static Hyprlock: files-only staging, repeat enable, rollback, preservation of edits, idle conflict detection, invalid paths, symlink preflight, and releasing the launcher guard when a background descendant remains alive.
+- **QML lint passed** for the production entry point, session controller, lock view, and Spotify panel.
+- The staged Hyprland configuration, including the generated binding/source, passed `Hyprland --verify-config`.
+- The installed QuickShell launcher acquired a real `ext-session-lock-v1` lock. Duplicate requests returned without creating a second locker.
+- Empty input was ignored and Escape cleared input. A rejected real PAM fixture response kept the session locked. The accepted fixture response released all lock surfaces and exited successfully.
+- A second monitor connected while locked received its own lock surface. Renderings were captured at 1920×1080, 1280×720, 1366×768, portrait 1080×1920, and 2560×1440 at 125% scale.
+- The Spotify panel stayed hidden with no player and with an unrelated VLC identity. A real D-Bus MPRIS fixture registered as Spotify supplied track metadata; the panel's play/pause, next, and previous buttons sent the expected methods over D-Bus. Unsupported controls were disabled and disconnecting the player hid the panel.
+- The actual Hypridle daemon launched the copied QuickShell locker on inactivity. Private login1 sleep and session-Lock signals also launched it. The sleep delay inhibitor released only after Hyprland confirmed the session locked.
+- The rendered layout was visually inspected. Feathers and the ribbon remain separate moving layers over an ordinary still Image. No hair shader is shipped or loaded by the installed locker.
+
+![Installed QuickShell locker with Spotify test service](quickshell-lockscreen.png)
+
+### Isolation and limits
+
+PAM uses a deterministic helper mounted over `/etc/pam.d` **inside bubblewrap only**. No test PAM policy or test password is installed on the host. The production controller uses QuickShell's `PamContext`, authenticates the actual current user, and releases the lock only after `PamResult.Success`.
+
+MPRIS and login1 run on a private D-Bus. Spotify transport has been verified against the real MPRIS interface using a fixture, not a signed-in Spotify account. The screenshot therefore labels the track artist as a test fixture. Cover art falls back to a music symbol when the player supplies no image. The fixture exports its interfaces before claiming the bus name, avoiding a service-startup race during discovery.
+
+The checks do not physically suspend, reboot, or shut down the host, and do not authenticate using a real account password. Test the recipient's PAM policy, Spotify desktop client, GPU wake behavior, lock shortcut, and physical suspend/resume on that machine. Power buttons invoke real system actions only after confirmation and only when logind reports permission without an authentication challenge.
+
+The nested test's additional developer packages are `bubblewrap grim wtype dbus python-gobject`. Repeat with:
+
+```sh
+python3 -m unittest discover -s tests -v
+python3 tests/quickshell_smoke.py
+```
+
+The integration suite records screenshots, logs, and `results.json` under `validation/quickshell/`, excluded from Git. The production install has no test inspection endpoint, demo authentication, browser server, or playback fixture.
+
+## Historical records
+
+The records below describe earlier versions and their original test results.
+
 ## Full animated localhost preview — 2026-10-15
 
 The complete QML design is now served at `http://localhost:8772/` by the independent `localhost/` project. It retains the original three-column interface and animations, with the central form adapted to preview unlocking the existing account.
